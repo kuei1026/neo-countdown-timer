@@ -301,11 +301,6 @@ function pauseTimer() {
 
   // 暫停後允許重新編輯輸入
   setInputsDisabled(false);
-
-  // 把目前剩餘秒數回填到輸入框
-  // 這樣使用者可以直接看到現在還剩多少
-  minutesInput.value = Math.floor(remainingSeconds / 60);
-  secondsInput.value = remainingSeconds % 60;
 }
 
 
