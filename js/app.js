@@ -32,7 +32,9 @@ let audioCtx = null;
 const PICKER_ITEM_HEIGHT = 36;
 const SECONDS_REPEAT = 7;
 const secondsMiddleCycle = Math.floor(SECONDS_REPEAT / 2);
-const SCROLL_END_DELAY = 90;
+
+// 精準模式：一個 wheel gesture 最多只觸發一次
+const WHEEL_GESTURE_LOCK_MS = 110;
 
 const pickerState = {
   minutes: null,
@@ -211,23 +213,54 @@ function createPicker(container, type, min, max, loop = false) {
     loop,
     type,
     currentValue: loop ? secondsValue : minutesValue,
-    scrollEndTimer: null,
     rafVisual: null,
     isDragging: false,
     dragStartY: 0,
     dragStartScrollTop: 0,
+    wheelLocked: false,
+    wheelUnlockTimer: null,
   };
 
+  // 精準 wheel：每個 gesture 只走一格
   scroller.addEventListener(
     'wheel',
     (event) => {
       if (timerId) return;
+
       event.preventDefault();
 
-      const boost = event.shiftKey ? 2.4 : 1.15;
-      scroller.scrollTop += event.deltaY * boost;
+      if (state.wheelLocked) {
+        return;
+      }
+
+      const delta = event.deltaY;
+
+      // 很小的噪音忽略
+      if (Math.abs(delta) < 2) {
+        return;
+      }
+
+      state.wheelLocked = true;
+      clearTimeout(state.wheelUnlockTimer);
+      state.wheelUnlockTimer = setTimeout(() => {
+        state.wheelLocked = false;
+      }, WHEEL_GESTURE_LOCK_MS);
+
+      const direction = delta > 0 ? 1 : -1;
+      const step = event.shiftKey
+        ? (state.type === 'minutes' ? 5 : 10)
+        : 1;
+
+      const deltaValue = direction * step;
+
+      if (state.type === 'minutes') {
+        setPickerValue(state, minutesValue + deltaValue, true);
+      } else {
+        setPickerValue(state, secondsValue + deltaValue, true);
+      }
+
       playWheelTick();
-      scheduleScrollEnd(state);
+      syncIdleState();
     },
     { passive: false }
   );
@@ -238,7 +271,6 @@ function createPicker(container, type, min, max, loop = false) {
     syncValueFromScroll(state);
     recenterLoopIfNeeded(state);
     requestPickerVisualUpdate(state);
-    scheduleScrollEnd(state);
   });
 
   container.addEventListener('keydown', (event) => {
@@ -265,6 +297,7 @@ function createPicker(container, type, min, max, loop = false) {
     }
   });
 
+  // 拖曳保留，但放開後一定精準 snap
   scroller.addEventListener('pointerdown', (event) => {
     if (timerId) return;
     state.isDragging = true;
@@ -285,11 +318,13 @@ function createPicker(container, type, min, max, loop = false) {
     state.isDragging = false;
     scroller.releasePointerCapture(event.pointerId);
     snapToNearest(state, true);
+    syncIdleState();
   });
 
   scroller.addEventListener('pointercancel', () => {
     state.isDragging = false;
     snapToNearest(state, true);
+    syncIdleState();
   });
 
   return state;
@@ -335,12 +370,6 @@ function syncValueFromScroll(state) {
 
   state.currentValue = value;
   setExternalValue(state.type, value);
-
-  totalSeconds = getInputSeconds();
-  remainingSeconds = totalSeconds;
-  updateDisplay();
-  startBtn.disabled = totalSeconds <= 0;
-  pauseBtn.disabled = true;
 }
 
 function recenterLoopIfNeeded(state) {
@@ -374,13 +403,6 @@ function requestPickerVisualUpdate(state) {
     updatePickerVisual(state);
     state.rafVisual = null;
   });
-}
-
-function scheduleScrollEnd(state) {
-  clearTimeout(state.scrollEndTimer);
-  state.scrollEndTimer = setTimeout(() => {
-    snapToNearest(state, true);
-  }, SCROLL_END_DELAY);
 }
 
 function snapToNearest(state, animated = true) {
@@ -421,23 +443,14 @@ function adjustPicker(type, delta) {
   }
 
   playWheelTick();
-  totalSeconds = getInputSeconds();
-  remainingSeconds = totalSeconds;
-  updateDisplay();
-  startBtn.disabled = totalSeconds <= 0;
-  pauseBtn.disabled = true;
+  syncIdleState();
 }
 
 function setPickerValuesFromSeconds(total, animated = false) {
   const parts = secondsToParts(total);
   setPickerValue(pickerState.minutes, parts.minutes, animated);
   setPickerValue(pickerState.seconds, parts.seconds, animated);
-
-  totalSeconds = getInputSeconds();
-  remainingSeconds = totalSeconds;
-  updateDisplay();
-  startBtn.disabled = totalSeconds <= 0;
-  pauseBtn.disabled = true;
+  syncIdleState();
 }
 
 function startTimer() {
