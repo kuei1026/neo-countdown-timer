@@ -29,10 +29,10 @@ let timerId = null;
 let endTime = null;
 let audioCtx = null;
 
-const PICKER_ITEM_HEIGHT = 34;
-const WHEEL_STEP_COOLDOWN = 70;
-const SECONDS_REPEAT = 5;
+const PICKER_ITEM_HEIGHT = 36;
+const SECONDS_REPEAT = 7;
 const secondsMiddleCycle = Math.floor(SECONDS_REPEAT / 2);
+const SCROLL_END_DELAY = 90;
 
 const pickerState = {
   minutes: null,
@@ -99,10 +99,10 @@ function playWheelTick() {
     const gain = audioCtx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.setValueAtTime(560, now);
 
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.02, now + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.016, now + 0.008);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
 
     osc.connect(gain).connect(audioCtx.destination);
@@ -211,22 +211,35 @@ function createPicker(container, type, min, max, loop = false) {
     loop,
     type,
     currentValue: loop ? secondsValue : minutesValue,
+    scrollEndTimer: null,
+    rafVisual: null,
     isDragging: false,
-    pointerStartY: 0,
-    dragStartValue: 0,
-    lastWheelTime: 0,
-    snapTimer: null,
+    dragStartY: 0,
+    dragStartScrollTop: 0,
   };
 
-  container.addEventListener(
+  scroller.addEventListener(
     'wheel',
     (event) => {
-      event.preventDefault();
       if (timerId) return;
-      handlePickerWheel(state, event);
+      event.preventDefault();
+
+      const boost = event.shiftKey ? 2.4 : 1.15;
+      scroller.scrollTop += event.deltaY * boost;
+      playWheelTick();
+      scheduleScrollEnd(state);
     },
     { passive: false }
   );
+
+  scroller.addEventListener('scroll', () => {
+    if (timerId) return;
+
+    syncValueFromScroll(state);
+    recenterLoopIfNeeded(state);
+    requestPickerVisualUpdate(state);
+    scheduleScrollEnd(state);
+  });
 
   container.addEventListener('keydown', (event) => {
     if (timerId) return;
@@ -252,64 +265,34 @@ function createPicker(container, type, min, max, loop = false) {
     }
   });
 
-  container.addEventListener('pointerdown', (event) => {
+  scroller.addEventListener('pointerdown', (event) => {
     if (timerId) return;
-
     state.isDragging = true;
-    state.pointerStartY = event.clientY;
-    state.dragStartValue = state.currentValue;
-    container.setPointerCapture(event.pointerId);
+    state.dragStartY = event.clientY;
+    state.dragStartScrollTop = scroller.scrollTop;
+    scroller.setPointerCapture(event.pointerId);
   });
 
-  container.addEventListener('pointermove', (event) => {
+  scroller.addEventListener('pointermove', (event) => {
     if (!state.isDragging || timerId) return;
 
-    const deltaY = event.clientY - state.pointerStartY;
-    const stepOffset = Math.round(-deltaY / PICKER_ITEM_HEIGHT);
-    const nextValue = state.dragStartValue + stepOffset;
-
-    setPickerValue(state, nextValue, false, false);
+    const deltaY = event.clientY - state.dragStartY;
+    scroller.scrollTop = state.dragStartScrollTop - deltaY;
   });
 
-  container.addEventListener('pointerup', (event) => {
+  scroller.addEventListener('pointerup', (event) => {
     if (!state.isDragging) return;
-
     state.isDragging = false;
-    container.releasePointerCapture(event.pointerId);
-    snapPicker(state);
-    finalizeExternalValues();
+    scroller.releasePointerCapture(event.pointerId);
+    snapToNearest(state, true);
   });
 
-  container.addEventListener('pointercancel', () => {
+  scroller.addEventListener('pointercancel', () => {
     state.isDragging = false;
-    snapPicker(state);
+    snapToNearest(state, true);
   });
 
   return state;
-}
-
-function normalizeWheelDelta(event) {
-  if (event.deltaMode === 1) return event.deltaY * 16;
-  if (event.deltaMode === 2) return event.deltaY * window.innerHeight;
-  return event.deltaY;
-}
-
-function handlePickerWheel(state, event) {
-  const now = Date.now();
-  if (now - state.lastWheelTime < WHEEL_STEP_COOLDOWN) return;
-
-  const delta = normalizeWheelDelta(event);
-  if (Math.abs(delta) < 4) return;
-
-  state.lastWheelTime = now;
-
-  let step = delta > 0 ? -1 : 1;
-
-  if (event.shiftKey) {
-    step = step * (state.type === 'minutes' ? 5 : 10);
-  }
-
-  adjustPicker(state.type, step);
 }
 
 function getIndexForValue(state, value) {
@@ -324,6 +307,55 @@ function getScrollTopForIndex(index) {
   return index * PICKER_ITEM_HEIGHT;
 }
 
+function getNearestIndexFromScroll(state) {
+  return Math.round(state.scroller.scrollTop / PICKER_ITEM_HEIGHT);
+}
+
+function getValueFromIndex(state, index) {
+  if (!state.loop) {
+    return clampMinutes(index + state.min);
+  }
+
+  return wrapSeconds(index % state.range);
+}
+
+function setExternalValue(type, value) {
+  if (type === 'minutes') {
+    minutesValue = clampMinutes(value);
+    minutesPicker.setAttribute('aria-valuenow', String(minutesValue));
+  } else {
+    secondsValue = wrapSeconds(value);
+    secondsPicker.setAttribute('aria-valuenow', String(secondsValue));
+  }
+}
+
+function syncValueFromScroll(state) {
+  const nearestIndex = getNearestIndexFromScroll(state);
+  const value = getValueFromIndex(state, nearestIndex);
+
+  state.currentValue = value;
+  setExternalValue(state.type, value);
+
+  totalSeconds = getInputSeconds();
+  remainingSeconds = totalSeconds;
+  updateDisplay();
+  startBtn.disabled = totalSeconds <= 0;
+  pauseBtn.disabled = true;
+}
+
+function recenterLoopIfNeeded(state) {
+  if (!state.loop) return;
+
+  const currentIndex = getNearestIndexFromScroll(state);
+  const lowerBound = state.range;
+  const upperBound = state.range * (SECONDS_REPEAT - 2);
+
+  if (currentIndex < lowerBound || currentIndex > upperBound) {
+    const centeredIndex = getIndexForValue(state, state.currentValue);
+    state.scroller.scrollTop = getScrollTopForIndex(centeredIndex);
+  }
+}
+
 function updatePickerVisual(state) {
   const center = state.scroller.scrollTop + state.scroller.clientHeight / 2;
 
@@ -335,53 +367,60 @@ function updatePickerVisual(state) {
   });
 }
 
-function animateScrollTo(state, targetScrollTop) {
+function requestPickerVisualUpdate(state) {
+  if (state.rafVisual) return;
+
+  state.rafVisual = requestAnimationFrame(() => {
+    updatePickerVisual(state);
+    state.rafVisual = null;
+  });
+}
+
+function scheduleScrollEnd(state) {
+  clearTimeout(state.scrollEndTimer);
+  state.scrollEndTimer = setTimeout(() => {
+    snapToNearest(state, true);
+  }, SCROLL_END_DELAY);
+}
+
+function snapToNearest(state, animated = true) {
+  const targetIndex = getIndexForValue(state, state.currentValue);
+  const targetTop = getScrollTopForIndex(targetIndex);
+
   state.scroller.scrollTo({
-    top: targetScrollTop,
-    behavior: 'smooth',
+    top: targetTop,
+    behavior: animated ? 'smooth' : 'auto',
   });
 
-  requestAnimationFrame(() => updatePickerVisual(state));
-  setTimeout(() => updatePickerVisual(state), 60);
-  setTimeout(() => updatePickerVisual(state), 140);
+  requestPickerVisualUpdate(state);
 }
 
-function setPickerValue(state, value, animated = true, syncState = true) {
-  let normalizedValue = value;
+function setPickerValue(state, value, animated = true) {
+  const safeValue = state.type === 'minutes' ? clampMinutes(value) : wrapSeconds(value);
+  state.currentValue = safeValue;
+  setExternalValue(state.type, safeValue);
 
-  if (state.type === 'minutes') {
-    normalizedValue = clampMinutes(value);
-    if (syncState) {
-      minutesValue = normalizedValue;
-      minutesPicker.setAttribute('aria-valuenow', String(normalizedValue));
-    }
-  } else {
-    normalizedValue = wrapSeconds(value);
-    if (syncState) {
-      secondsValue = normalizedValue;
-      secondsPicker.setAttribute('aria-valuenow', String(normalizedValue));
-    }
+  const targetIndex = getIndexForValue(state, safeValue);
+  const targetTop = getScrollTopForIndex(targetIndex);
+
+  state.scroller.scrollTo({
+    top: targetTop,
+    behavior: animated ? 'smooth' : 'auto',
+  });
+
+  requestPickerVisualUpdate(state);
+}
+
+function adjustPicker(type, delta) {
+  if (type === 'minutes') {
+    setPickerValue(pickerState.minutes, minutesValue + delta, true);
   }
 
-  state.currentValue = normalizedValue;
-
-  const targetIndex = getIndexForValue(state, normalizedValue);
-  const targetScrollTop = getScrollTopForIndex(targetIndex);
-
-  if (animated) {
-    animateScrollTo(state, targetScrollTop);
-  } else {
-    state.scroller.scrollTop = targetScrollTop;
-    updatePickerVisual(state);
+  if (type === 'seconds') {
+    setPickerValue(pickerState.seconds, secondsValue + delta, true);
   }
-}
 
-function snapPicker(state) {
-  const value = state.currentValue;
-  setPickerValue(state, value, true, true);
-}
-
-function finalizeExternalValues() {
+  playWheelTick();
   totalSeconds = getInputSeconds();
   remainingSeconds = totalSeconds;
   updateDisplay();
@@ -389,24 +428,16 @@ function finalizeExternalValues() {
   pauseBtn.disabled = true;
 }
 
-function adjustPicker(type, delta) {
-  if (type === 'minutes') {
-    setPickerValue(pickerState.minutes, minutesValue + delta, true, true);
-  }
-
-  if (type === 'seconds') {
-    setPickerValue(pickerState.seconds, secondsValue + delta, true, true);
-  }
-
-  playWheelTick();
-  finalizeExternalValues();
-}
-
 function setPickerValuesFromSeconds(total, animated = false) {
   const parts = secondsToParts(total);
-  setPickerValue(pickerState.minutes, parts.minutes, animated, true);
-  setPickerValue(pickerState.seconds, parts.seconds, animated, true);
-  finalizeExternalValues();
+  setPickerValue(pickerState.minutes, parts.minutes, animated);
+  setPickerValue(pickerState.seconds, parts.seconds, animated);
+
+  totalSeconds = getInputSeconds();
+  remainingSeconds = totalSeconds;
+  updateDisplay();
+  startBtn.disabled = totalSeconds <= 0;
+  pauseBtn.disabled = true;
 }
 
 function startTimer() {
@@ -490,9 +521,11 @@ function initPickers() {
   pickerState.seconds = createPicker(secondsPicker, 'seconds', 0, 59, true);
 
   requestAnimationFrame(() => {
-    setPickerValue(pickerState.minutes, minutesValue, false, true);
-    setPickerValue(pickerState.seconds, secondsValue, false, true);
-    finalizeExternalValues();
+    setPickerValue(pickerState.minutes, minutesValue, false);
+    setPickerValue(pickerState.seconds, secondsValue, false);
+    updatePickerVisual(pickerState.minutes);
+    updatePickerVisual(pickerState.seconds);
+    syncIdleState();
   });
 }
 
@@ -503,9 +536,9 @@ presetButtons.forEach((btn) => {
     minutesValue = parseInt(btn.dataset.minutes, 10) || 0;
     secondsValue = 0;
 
-    setPickerValue(pickerState.minutes, minutesValue, true, true);
-    setPickerValue(pickerState.seconds, secondsValue, true, true);
-    finalizeExternalValues();
+    setPickerValue(pickerState.minutes, minutesValue, true);
+    setPickerValue(pickerState.seconds, secondsValue, true);
+    syncIdleState();
   });
 });
 
