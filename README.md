@@ -10,10 +10,10 @@ https://kuei1026.github.io/neo-countdown-timer/
 ## ✨ Preview
 
 ### 🌙 Dark Mode
-![Dark Mode](./assets/dark.png)
+![Dark Mode](./assets/dark.PNG)
 
 ### ☀️ Light Mode
-![Light Mode](./assets/light.png)
+![Light Mode](./assets/light.PNG)
 
 ---
 
