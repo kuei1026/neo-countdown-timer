@@ -6,31 +6,39 @@
   <title>Neo Countdown Timer</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
+
 <body>
+
+  <!-- 🌗 全局主題切換 -->
+  <div class="page-theme-toggle" id="themeToggle">
+    <div class="toggle-track">
+      <div class="toggle-thumb"></div>
+      <div class="toggle-icon sun">☀</div>
+      <div class="toggle-icon moon">☾</div>
+    </div>
+  </div>
+
   <main class="app">
-    <section class="card" aria-label="倒數計時器小工具">
+    <section class="card">
 
-      <div class="theme-toggle" id="themeToggle">
-        <div class="toggle-track">
-          <div class="toggle-thumb"></div>
-
-          <div class="toggle-icon sun">☀</div>
-          <div class="toggle-icon moon">☾</div>
-        </div>
-      </div>
       <div class="left">
-        <div class="eyebrow">Countdown</div>
+        <div class="eyebrow">COUNTDOWN</div>
         <h1>倒數計時器</h1>
 
         <div class="inputs">
-          <div class="field">
-            <label for="minutes">分鐘</label>
-            <input id="minutes" type="number" min="0" max="999" value="10" inputmode="numeric" />
+
+          <!-- 分鐘 -->
+          <div class="field picker-field">
+            <label>分鐘</label>
+            <div class="picker" id="minutesPicker"></div>
           </div>
-          <div class="field">
-            <label for="seconds">秒數</label>
-            <input id="seconds" type="number" min="0" max="59" value="0" inputmode="numeric" />
+
+          <!-- 秒數 -->
+          <div class="field picker-field">
+            <label>秒數</label>
+            <div class="picker" id="secondsPicker"></div>
           </div>
+
         </div>
 
         <div class="presets">
@@ -49,28 +57,31 @@
 
       </div>
 
+      <!-- 右側 -->
       <div class="right">
-        <div class="panel" id="panel">
+        <div class="panel">
           <div class="ring-wrap">
-            <svg viewBox="0 0 320 320" aria-hidden="true">
+
+            <svg viewBox="0 0 320 320">
               <defs>
-                <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#62c4ff" />
-                  <stop offset="100%" stop-color="#7f7bff" />
+                <linearGradient id="grad">
+                  <stop offset="0%" stop-color="#62c4ff"/>
+                  <stop offset="100%" stop-color="#7f7bff"/>
                 </linearGradient>
               </defs>
-              <circle class="ring-track" cx="160" cy="160" r="140"></circle>
-              <circle class="ring-progress" id="progressRing" cx="160" cy="160" r="140"></circle>
+
+              <circle cx="160" cy="160" r="140" class="ring-track"></circle>
+              <circle cx="160" cy="160" r="140" id="progressRing" class="ring-progress"></circle>
             </svg>
 
-            <div class="time-readout" id="readout">
-              <div class="status" id="statusText"></div>
-              <div class="time" id="timeDisplay">05:00</div>
-              <div class="hint" id="hintText"></div>
+            <div class="time-readout">
+              <div id="timeDisplay">05:00</div>
             </div>
+
           </div>
         </div>
       </div>
+
     </section>
   </main>
 
