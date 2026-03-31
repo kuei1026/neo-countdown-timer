@@ -62,7 +62,16 @@ function renderPicker(container, value, min, max) {
   windowEl.className = 'picker-window';
 
   for (let offset = -2; offset <= 2; offset++) {
-    const displayValue = Math.max(min, Math.min(max, value + offset));
+    const rawValue = value + offset;
+    let displayValue = rawValue;
+
+    if (container === secondsPicker) {
+      if (rawValue < min) displayValue = max + 1 + rawValue;
+      if (rawValue > max) displayValue = rawValue - (max + 1);
+    } else {
+      displayValue = Math.max(min, Math.min(max, rawValue));
+    }
+
     const item = document.createElement('div');
     item.className = 'picker-item';
     item.textContent = pad2(displayValue);
@@ -76,6 +85,7 @@ function renderPicker(container, value, min, max) {
     windowEl.appendChild(item);
   }
 
+  windowEl.style.transform = 'translateY(0px)';
   container.innerHTML = '';
   container.appendChild(windowEl);
 
@@ -90,6 +100,20 @@ function syncPickers() {
 
   minutesPicker.setAttribute('aria-valuenow', String(minutesValue));
   secondsPicker.setAttribute('aria-valuenow', String(secondsValue));
+}
+
+function animatePickerNudge(container, direction) {
+  const windowEl = container.querySelector('.picker-window');
+  if (!windowEl) return;
+
+  const distance = direction > 0 ? 10 : -10;
+  windowEl.style.transform = `translateY(${distance}px)`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      windowEl.style.transform = 'translateY(0px)';
+    });
+  });
 }
 
 function updateRing() {
@@ -266,20 +290,32 @@ function playWheelTick() {
 }
 
 function adjustPicker(type, delta) {
+  let changed = false;
+  let targetPicker = null;
+
   if (type === 'minutes') {
     const next = Math.max(0, Math.min(999, minutesValue + delta));
-    if (next === minutesValue) return;
-    minutesValue = next;
+    if (next !== minutesValue) {
+      minutesValue = next;
+      changed = true;
+      targetPicker = minutesPicker;
+    }
   }
 
   if (type === 'seconds') {
     const next = Math.max(0, Math.min(59, secondsValue + delta));
-    if (next === secondsValue) return;
-    secondsValue = next;
+    if (next !== secondsValue) {
+      secondsValue = next;
+      changed = true;
+      targetPicker = secondsPicker;
+    }
   }
+
+  if (!changed) return;
 
   playWheelTick();
   syncPickers();
+  animatePickerNudge(targetPicker, delta);
   syncIdleState();
 }
 
