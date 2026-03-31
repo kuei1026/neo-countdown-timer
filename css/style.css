@@ -28,44 +28,34 @@
 ========================================================= */
 
 :root {
-  /* 背景主色：整體是深藍黑色調 */
+  --bg-1: #f4f8fc;
+  --bg-2: #dfe9f5;
+  --panel: rgba(255, 255, 255, 0.62);
+  --panel-border: rgba(120, 150, 190, 0.18);
+  --text: #142033;
+  --muted: #5f6f86;
+  --accent: #4aa8ff;
+  --accent-2: #7f7bff;
+  --success: #17b978;
+  --danger: #ff6f91;
+  --shadow: 0 20px 80px rgba(31, 52, 84, 0.12);
+  --ring-track: rgba(20, 32, 51, 0.08);
+  --ring-glow: drop-shadow(0 0 10px rgba(74,168,255,0.24)) drop-shadow(0 0 22px rgba(127,123,255,0.16));
+}
+body[data-theme="dark"] {
   --bg-1: #07111f;
   --bg-2: #0b1b2f;
-
-  /* 面板底色：半透明深色，搭配玻璃擬態 */
   --panel: rgba(14, 27, 46, 0.72);
-
-  /* 面板邊框色：淡淡的藍白色邊框 */
   --panel-border: rgba(152, 198, 255, 0.18);
-
-  /* 主文字顏色 */
   --text: #eef6ff;
-
-  /* 次要文字顏色（說明文字、提示文字） */
   --muted: #9eb2cb;
-
-  /* 主題光色：藍色 */
   --accent: #62c4ff;
-
-  /* 第二主題光色：紫色 */
   --accent-2: #7f7bff;
-
-  /* 成功 / 完成狀態顏色 */
   --success: #7effc7;
-
-  /* 危險 / 提示顏色（目前還沒有大量使用） */
   --danger: #ff6f91;
-
-  /* 大面積陰影：卡片浮起來的立體感 */
   --shadow: 0 20px 80px rgba(0, 0, 0, 0.35);
-
-  /* 圓環底軌顏色 */
   --ring-track: rgba(255,255,255,0.08);
-
-  /* 圓環發光效果 */
-  --ring-glow:
-    drop-shadow(0 0 10px rgba(98,196,255,0.55))
-    drop-shadow(0 0 22px rgba(127,123,255,0.25));
+  --ring-glow: drop-shadow(0 0 10px rgba(98,196,255,0.55)) drop-shadow(0 0 22px rgba(127,123,255,0.25));
 }
 
 
@@ -117,8 +107,63 @@ body {
 
   /* 防止某些特效或定位元素造成捲軸 */
   overflow: hidden;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+.theme-switcher {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
+.theme-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.theme-btn:hover {
+  transform: translateY(-1px);
+}
+
+.theme-btn.active {
+  background: linear-gradient(135deg, rgba(98,196,255,0.20), rgba(127,123,255,0.18));
+  color: var(--text);
+}
+.field input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 700;
+  cursor: ns-resize;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
 
 /* =========================================================
    4) 背景漂浮光球效果
@@ -733,4 +778,86 @@ h1 {
   .field input {
     font-size: 24px;
   }
+}
+
+/* =========================
+   Theme Toggle (高質感版本)
+========================= */
+
+.theme-toggle {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+  cursor: pointer;
+}
+
+.toggle-track {
+  width: 64px;
+  height: 34px;
+  border-radius: 999px;
+  position: relative;
+
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.15);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 8px;
+}
+
+/* 滑動的球 */
+.toggle-thumb {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+
+  background: linear-gradient(135deg, #ffffff, #dfe9f5);
+
+  top: 2px;
+  left: 3px;
+
+  transition: all 0.3s ease;
+
+  box-shadow:
+    0 4px 12px rgba(0,0,0,0.25);
+}
+
+/* icon */
+.toggle-icon {
+  font-size: 14px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: 0.2s;
+}
+
+.toggle-icon.sun {
+  color: #f5b942;
+}
+
+.toggle-icon.moon {
+  color: #cfd8ff;
+}
+
+/* 👉 Dark 模式時滑過去 */
+body[data-theme="dark"] .toggle-thumb {
+  left: 33px;
+
+  background: linear-gradient(135deg, #1e2a3a, #0b1b2f);
+}
+
+/* icon 強調 */
+body[data-theme="light"] .sun {
+  opacity: 1;
+}
+
+body[data-theme="dark"] .moon {
+  opacity: 1;
 }

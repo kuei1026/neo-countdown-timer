@@ -35,7 +35,74 @@ const panel = document.getElementById('panel');               // 右側面板，
 // 把所有快捷預設按鈕抓成陣列，後面方便一次綁事件
 const presetButtons = [...document.querySelectorAll('.chip')];
 
+const lightThemeBtn = document.getElementById('lightThemeBtn');
+const darkThemeBtn = document.getElementById('darkThemeBtn');
+// 預設初始模式
+let currentTheme = localStorage.getItem('neo-theme') || 'light';
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.body.setAttribute('data-theme', theme);
+  localStorage.setItem('neo-theme', theme);
 
+  lightThemeBtn.classList.toggle('active', theme === 'light');
+  darkThemeBtn.classList.toggle('active', theme === 'dark');
+}
+
+// 滾輪音效
+function playWheelTick() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(520, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.03, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+  } catch (err) {
+    console.warn('無法播放滾輪音效', err);
+  }
+}
+
+function adjustNumberInput(inputEl, delta, min, max) {
+  const currentValue = parseInt(inputEl.value || '0', 10) || 0;
+  const nextValue = Math.max(min, Math.min(max, currentValue + delta));
+
+  if (nextValue === currentValue) return;
+
+  inputEl.value = nextValue;
+  playWheelTick();
+  syncIdleState();
+}
+minutesInput.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  if (minutesInput.disabled) return;
+
+  const delta = event.deltaY < 0 ? 1 : -1;
+  adjustNumberInput(minutesInput, delta, 0, 999);
+}, { passive: false });
+
+secondsInput.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  if (secondsInput.disabled) return;
+
+  const delta = event.deltaY < 0 ? 1 : -1;
+  adjustNumberInput(secondsInput, delta, 0, 59);
+}, { passive: false });
+
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', () => {
+  const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(nextTheme);
+});
 /* =========================================================
    2) 常數與全域狀態
    ---------------------------------------------------------
@@ -467,4 +534,5 @@ document.addEventListener('visibilitychange', () => {
    網頁一打開就先同步一次畫面狀態。
 ========================================================= */
 
+applyTheme(currentTheme);
 syncIdleState();
