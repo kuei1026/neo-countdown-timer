@@ -193,8 +193,8 @@ function syncIdleState() {
 
   updateDisplay();
 
-  statusText.textContent = 'Ready';
-  hintText.textContent = totalSeconds > 0 ? '設定好時間後按下開始' : '請先輸入倒數時間';
+  statusText.textContent = '';
+  hintText.textContent = '';
 
   // 清掉完成狀態與閃爍效果
   readout.classList.remove('done', 'flash');
@@ -251,8 +251,8 @@ function startTimer() {
   if (remainingSeconds <= 0) return;
 
   // 更新畫面狀態
-  statusText.textContent = 'Running';
-  hintText.textContent = '倒數中';
+  statusText.textContent = '';
+  hintText.textContent = '';
   startBtn.disabled = true;
   pauseBtn.disabled = false;
   setInputsDisabled(true);
@@ -294,8 +294,8 @@ function pauseTimer() {
   clearInterval(timerId);
   timerId = null;
 
-  statusText.textContent = 'Paused';
-  hintText.textContent = '已暫停，可繼續倒數';
+  statusText.textContent = '';
+  hintText.textContent = '';
   startBtn.disabled = false;
   pauseBtn.disabled = true;
 
@@ -340,8 +340,8 @@ function finishTimer() {
 
   updateDisplay();
 
-  statusText.textContent = 'Time Up';
-  hintText.textContent = '時間到了';
+  statusText.textContent = '';
+  hintText.textContent = '';
   startBtn.disabled = false;
   pauseBtn.disabled = true;
   setInputsDisabled(false);

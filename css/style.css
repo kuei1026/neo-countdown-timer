@@ -288,10 +288,10 @@ body::after {
 ========================================================= */
 
 h1 {
-  margin: 0 0 10px;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.06;
-  font-weight: 750;
+  margin: 0 0 20px;
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.1;
+  font-weight: 700;
 }
 
 
@@ -613,10 +613,11 @@ h1 {
 
 /* 狀態文字：Ready / Running / Paused / Time Up */
 .time-readout .status {
-  font-size: 12px;
-  letter-spacing: 0.16em;
+  min-height: 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(255,255,255,0.45);
 }
 
 
@@ -627,7 +628,7 @@ h1 {
   /* tabular-nums 可以讓每個數字寬度一致，
      倒數時不會因為數字寬度不同而跳動
   */
-  font-size: clamp(46px, 7vw, 72px);
+  font-size: clamp(56px, 8vw, 88px);
   font-weight: 800;
   letter-spacing: 0.03em;
   text-shadow: 0 0 20px rgba(255,255,255,0.06);
